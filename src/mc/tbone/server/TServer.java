@@ -2,18 +2,24 @@ package mc.tbone.server;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import joptsimple.OptionParser;
 import mc.tbone.api.Server;
 import mc.tbone.api.TBone;
+import mc.tbone.api.access.Banlist;
+import mc.tbone.api.access.Whitelist;
 import mc.tbone.api.player.Player;
 import mc.tbone.api.world.World;
 import windows.prefs.IniFile;
@@ -24,7 +30,7 @@ public class TServer implements Server {
 	
 	private String serverName;
 	private String serverMotd;
-	private String serverVersion;
+	private String serverVersion = "1.7.2";
 	
 	private boolean whitelistEnabled;
 	
@@ -37,9 +43,14 @@ public class TServer implements Server {
 	
 	private ServerSocket socket;
 	
+	private Whitelist whitelist;
+	private Banlist banlist;
+	
 	private String shutdownMessage;
 	
 	private final String boneVersion = "0.0.1";
+	
+	private Scanner inputScanner;
 	
 	public static void main( String[] args )
 	{
@@ -82,6 +93,8 @@ public class TServer implements Server {
 						+ "[connection]" + newLine
 						+ "server_port=25565" + newLine
 						+ "max_players=20" );
+				s.flush();
+				s.close();
 			}
 			catch( IOException ex )
 			{
@@ -108,8 +121,6 @@ public class TServer implements Server {
 	
 	public TServer( IniFile serverIniConfiguration )
 	{
-		System.out.println( "TBone v" + boneVersion + " running for Minecraft " + getVersion() );
-		
 		this.serverName = serverIniConfiguration.getString( "info", "server_name", "Minecraft Server" );
 		this.serverMotd = serverIniConfiguration.getString( "info", "server_motd", "A Minecraft Server using TBone Server!" );
 		
@@ -127,6 +138,28 @@ public class TServer implements Server {
 			System.out.println( "Couldn't start server socket on port " + this.port + ". Maybe there's already a server running?" );
 			System.exit( 0 );
 		}
+		
+		System.out.println( "TBone v" + boneVersion + " running for Minecraft " + getVersion() + " on port " + port );
+		
+		try {
+			socket.accept();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		onlinePlayers = new ArrayList< Player >();
+		worlds = new ArrayList< World >();
+		
+		whitelist = new Whitelist();
+		setupWhitelist( new File( workingDirectory, "whitelist.txt" ) );
+		
+		banlist = new Banlist();
+		setupBanlist( new File( workingDirectory, "bans.txt" ) );
+		
+		inputScanner = new Scanner( System.in );
+		
+		shutdown();
 	}
 	
 	@Override
@@ -184,16 +217,66 @@ public class TServer implements Server {
 
 	@Override
 	public void shutdown() {
-		for( Player p : this.onlinePlayers )
+		for( Player p : onlinePlayers )
 		{
 			p.kick( shutdownMessage );
+		}
+		
+		try {
+			socket.close();
+		} catch (IOException e) {
+			System.out.println( "Couldn't close socket. Forcing a server shutdown." );
+			System.exit( 0 );
 		}
 	}
 
 	@Override
 	public String getWorkingDirectory() {
-		// TODO Auto-generated method stub
-		return null;
+		return workingDirectory;
 	}
 
+	@Override
+	public Whitelist getWhitelist()
+	{
+		return whitelist;
+	}
+	
+	private void setupWhitelist( File whitelistFile )
+	{
+		if( whitelist != null )
+		{	
+			if( !whitelistFile.exists() )
+			{
+				try
+				{
+					whitelistFile.createNewFile();
+				}
+				catch( IOException ex )
+				{
+					System.out.println( "Couldn't create whitelist.txt file" );
+					System.exit( 0 );
+					
+					shutdown();
+				}
+			}
+			
+			try {
+				InputStreamReader reader = new FileReader( whitelistFile );
+			} catch (FileNotFoundException e) {
+				System.out.println( "An almost impossible thing happened. After the creation of the banlist it disappeared. :(" );
+				System.exit( 0 );
+			}
+		}
+	}
+	
+	private void setupOps( File opsFile )
+	{
+		
+	}
+	
+	private void setupBanlist( File banlistFile )
+	{
+		
+	}
+	
 }
