@@ -26,6 +26,8 @@ import windows.prefs.IniFile;
 
 public class TServer implements Server {
 
+	private static TServer instance;
+	
 	private static String workingDirectory;
 	
 	private String serverName;
@@ -277,6 +279,16 @@ public class TServer implements Server {
 	private void setupBanlist( File banlistFile )
 	{
 		
+	}
+
+	public void stop() {
+		// TODO Auto-generated method stub
+		
+	}
+	
+	public static TServer getServer()
+	{
+		return instance;
 	}
 	
 }
